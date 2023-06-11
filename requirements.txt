@@ -1,0 +1,11 @@
+fastapi~=0.95.2
+pydantic~=1.10.8
+aio-pika
+aioredis
+celery
+asyncpg~=0.27.0
+python-dotenv~=1.0.0
+uvicorn~=0.22.0
+starlette~=0.27.0
+passlib~=1.7.4
+httpx~=0.24.1
