@@ -35,10 +35,11 @@ async def verify_payment(orderId: Union[str, uuid.UUID], lang: str, order_id):
 @auth_required
 async def buy_by_card(tariff_body: BuyTariff, authorize=Header(None)):
     from auth.auth import decode_token
-    print(authorize)
     c_uuid = await decode_token(authorize)
     c_uuid = c_uuid.sub
     _bank_order_state = await OrderServiceManager.buy_by_card(tariff_body, c_uuid)
+    if _bank_order_state == -1:
+        return HTTPException(400, 'WRONG COUNTRY PAYMENT SYSTEM')
     if isinstance(_bank_order_state, dict):
         return HTTPException(400, _bank_order_state)
     print(_bank_order_state)

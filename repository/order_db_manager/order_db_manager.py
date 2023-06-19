@@ -22,11 +22,11 @@ class OrderDbManager(TariffDbInterface):
     @staticmethod
     async def track_rabbit_task(task_id):
         _add_state = await fetch_row_transaction(
-            """SELECT r_t_id FROM rabbit_task WHERE r_m_id = $1 AND r_m_state = false""",
+            """SELECT r_t_id, r_m_state FROM rabbit_task WHERE r_m_id = $1""",
             task_id
         )
         if _add_state:
-            return _add_state['r_t_id']
+            return _add_state['r_t_id'], _add_state['r_m_state']
         return
 
     @staticmethod
@@ -35,6 +35,15 @@ class OrderDbManager(TariffDbInterface):
             """UPDATE rabbit_task SET r_m_state = true WHERE r_m_id = $1""",
             task_id
         )
+
+    @staticmethod
+    async def get_download_links_for_email(order_id):
+        _links = await fetch_row_transaction(
+            """SELECT * from get_links_state($1);""",
+            order_id
+        )
+        if _links is not None:
+            return [j for j in _links.values()]
 
     @staticmethod
     async def add_order_to_temp(tariff_body: BuyTariff, company_id: Union[str, uuid.UUID]):

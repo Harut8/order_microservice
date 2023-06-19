@@ -18,7 +18,7 @@ class OrderServiceManager(OrderServiceInterface):
             _temp_order_id = await _SAGA_PATTERN["add_order_to_temp"](tariff_body, company_id)
             _bank_url = await OrderServiceManager.get_request_url(_temp_order_id["order_id"])
             if not _bank_url:
-                return
+                return -1
             _bank_url = _bank_url + "order_id="+str(_temp_order_id["order_id"])
             _form_url = await _SAGA_PATTERN["request_to_bank"](_bank_url)
             return _form_url
@@ -133,6 +133,16 @@ class OrderServiceManager(OrderServiceInterface):
     async def update_rabbit_task(task_id):
         try:
             await OrderDbManager.update_rabbit_task(task_id)
+            return True
+        except Exception as e:
+            print(e)
+            return
+
+    @staticmethod
+    async def get_download_links_for_email(order_id):
+        try:
+            _links = await OrderDbManager.get_download_links_for_email(order_id)
+            return _links
         except Exception as e:
             print(e)
             return
