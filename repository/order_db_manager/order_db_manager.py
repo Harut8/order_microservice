@@ -12,10 +12,11 @@ from asyncpg import Record
 @dataclass
 class OrderDbManager(TariffDbInterface):
     @staticmethod
-    async def add_task_for_track(task_id):
+    async def add_task_for_track(task_id, bank_order_id):
         _add_state = await fetch_row_transaction(
-            """INSERT INTO rabbit_task(r_m_id) VALUES($1)""",
-            task_id
+            """INSERT INTO rabbit_task(r_m_id, bank_order_id) VALUES($1, $2)""",
+            task_id,
+            bank_order_id
         )
         return _add_state
 
@@ -141,11 +142,20 @@ class OrderDbManager(TariffDbInterface):
                                             """, order_id
                     )
                     await db.execute("""select verify_payment($1, $2);""", order_id, tariff_id['tarif_id_fk'])
+                    await db.execute("""UPDATE saved_order_and_tarif_bank SET bank_state = 1 WHERE bank_order_id = $1;""", order_id)
                     _email = await db.fetchrow(
                         """SELECT c_email FROM company WHERE c_id =
                          (SELECT company_id FROM saved_order_and_tarif WHERE order_id = $1)""",
                     order_id)
                     return _email
+
+    @staticmethod
+    async def get_email_for_sending_after_fail(order_id):
+        _email = await fetch_row_transaction(
+            """SELECT c_email FROM company WHERE c_id =
+             (SELECT company_id FROM saved_order_and_tarif WHERE order_id = $1)""",
+            order_id)
+        return _email['c_email']
 
     @staticmethod
     async def verify_order(order_id):
@@ -168,3 +178,18 @@ class OrderDbManager(TariffDbInterface):
                                       ' days')::interval
                             from saved_order_and_tarif where order_id=$1;""", order_id)
                     return True
+
+    @staticmethod
+    async def check_pay_state(bank_order_id):
+        await fetch_row_transaction(
+            """UPDATE rabbit_task SET check_pay_state = true WHERE bank_order_id = $1""",
+            bank_order_id
+        )
+
+    @staticmethod
+    async def cron_check_pay_state():
+        await DbConnection().create_connection()
+        _check_pay_list = await fetch_transaction(
+            """SELECT r_m_id, bank_order_id FROM rabbit_task WHERE check_pay_state = False"""
+        )
+        return _check_pay_list

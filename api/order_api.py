@@ -18,7 +18,7 @@ async def order_ping():
 
 
 @order_router.get("/verify-order")
-async def _verify_order(order_token):
+async def _verify_order(order_token: Union[str, uuid.UUID]):
     _state = await OrderServiceManager.verify_order(order_token)
     if not _state:
         return HTTPException(400)
@@ -44,12 +44,7 @@ async def buy_by_card(tariff_body: BuyTariff, authorize=Header(None)):
         return HTTPException(400, _bank_order_state)
     print(_bank_order_state)
     if _bank_order_state:
-        return RedirectResponse(_bank_order_state)
+        #return RedirectResponse(_bank_order_state)
+        return _bank_order_state
     return HTTPException(400)
 
-
-@order_router.get('/redirect')
-async def redirect_to_bank_url():
-    print("ok")
-
-#

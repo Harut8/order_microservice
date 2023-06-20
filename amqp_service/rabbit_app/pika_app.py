@@ -21,14 +21,26 @@ class RabbitMQ:
         self._channel = await self._conn.channel()
 
     @staticmethod
+    async def send_mails_after_check(bank_order_id, email, message_id):
+        try:
+            from service.order_service_manager.order_service_manager import OrderServiceManager
+            from mailing.verify_mailing.send_order_verify_link import send_order_verify_link_email
+            from service.url_token_generator.token_creator import generate_url_for_verify_order
+            from mailing.download_mailing.send_download_links import send_download_links
+            send_order_verify_link_email.delay(receiver_email=email,
+                                               message=generate_url_for_verify_order(bank_order_id))
+            _update_state = await OrderServiceManager.update_rabbit_task(message_id)
+            _links = await OrderServiceManager.get_download_links_for_email(bank_order_id)
+            send_download_links.delay(receiver_email=email, message=_links)
+        except Exception as e:
+            print(e, 'MAILING ERROR')
+            return
+
+    @staticmethod
     async def check_payment_state_callback(body, message_id, step=0):
         _update_state = False
         _email = None
         from service.saga.saga_pattern import _SAGA_PATTERN
-        from service.order_service_manager.order_service_manager import OrderServiceManager
-        from mailing.verify_mailing.send_order_verify_link import send_order_verify_link_email
-        from service.url_token_generator.token_creator import generate_url_for_verify_order
-        from mailing.download_mailing.send_download_links import send_download_links
         bank_and_order = json.loads(body.decode('utf-8'))
         #  here need to create safe system for backup pay
         if step == 0:
@@ -40,25 +52,26 @@ class RabbitMQ:
             if not _email:
                 return
             _email = _email["c_email"]
-            send_order_verify_link_email.delay(receiver_email=_email, message=generate_url_for_verify_order(bank_and_order["bank_order_id"]))
-            _update_state = await OrderServiceManager.update_rabbit_task(message_id)
-        _links = await OrderServiceManager.get_download_links_for_email(bank_and_order["bank_order_id"])
-        send_download_links.delay(receiver_email=_email, message=_links)
+            await RabbitMQ.send_mails_after_check(bank_and_order["bank_order_id"], _email, message_id)
+        elif step == 1:
+            _email = await _SAGA_PATTERN['check_payment_state'](bank_and_order["bank_order_id"], step=1)
+            await RabbitMQ.send_mails_after_check(bank_and_order["bank_order_id"], _email, message_id)
 
     async def produce(self, routing_key: str, body: str) -> None:
+        import uuid
+        message = aio_pika.Message(body=body.encode(), message_id=str(uuid.uuid4()))
+        from service.order_service_manager.order_service_manager import OrderServiceManager
         try:
-            import uuid
-            message = aio_pika.Message(body=body.encode(), message_id=str(uuid.uuid4()))
-            from service.order_service_manager.order_service_manager import OrderServiceManager
             await self._channel.default_exchange.publish(
                 message,
                 routing_key=routing_key,
             )
-            await OrderServiceManager.add_task_for_track(message.message_id)
             await self.close()
         except Exception as e:
-            print(e)
+            print(e, 'RABBIT ERROR')
             return
+        finally:
+            await OrderServiceManager.add_task_for_track(message.message_id, message.body)
 
     async def consume(self, callback):
         #  callback is check_payment_state
@@ -66,6 +79,7 @@ class RabbitMQ:
             from service.order_service_manager.order_service_manager import OrderServiceManager
             await self._connection_open()
             queue = await self._channel.declare_queue(self._queue)
+            print("CONSUME")
             async with queue.iterator() as iterator:
                 async for message in iterator:
                     _track = await OrderServiceManager.track_rabbit_task(message.message_id)
@@ -80,7 +94,7 @@ class RabbitMQ:
                         await callback(message.body, message.message_id, step=1)
 
         except Exception as e:
-            print(e)
+            print(e, 'something went wrong')
             return
 
     async def close(self):

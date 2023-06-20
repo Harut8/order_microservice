@@ -86,8 +86,11 @@ class OrderServiceManager(OrderServiceInterface):
             return
 
     @staticmethod
-    async def check_payment_state_and_verify(bank_order_id):
+    async def check_payment_state_and_verify(bank_order_id, step=0):
         try:
+            if step == 1:
+                _email = await OrderDbManager.get_email_for_sending_after_fail(bank_order_id)
+                return _email
             bank_url = await OrderDbManager.get_payment_status_check_url(bank_order_id)
             if not bank_url:
                 return
@@ -95,8 +98,8 @@ class OrderServiceManager(OrderServiceInterface):
                 bank_url = bank_url['check_status_url']+bank_order_id+"&token="+bank_url["bank_token"]
                 _pay_state = await client.post(bank_url)
                 _pay_state = _pay_state.json()
-                print(_pay_state)
-                if _pay_state["errorCode"] == '0':
+                await OrderDbManager.check_pay_state(bank_order_id)
+                if _pay_state["errorCode"] == '0' and _pay_state['orderStatus'] == 2:
                     return await OrderDbManager.add_tariff_to_user_after_verify(bank_order_id)
         except Exception as e:
             print(e)
@@ -112,9 +115,11 @@ class OrderServiceManager(OrderServiceInterface):
             return
 
     @staticmethod
-    async def add_task_for_track(task_id):
+    async def add_task_for_track(task_id, bank_order_id):
         try:
-            _add_state = await OrderDbManager.add_task_for_track(task_id)
+            _order_info = json.loads(bank_order_id.decode('utf-8'))
+            _bank_order_id = _order_info["bank_order_id"]
+            _add_state = await OrderDbManager.add_task_for_track(task_id, _bank_order_id)
             return _add_state
         except Exception as e:
             print(e)
@@ -143,6 +148,15 @@ class OrderServiceManager(OrderServiceInterface):
         try:
             _links = await OrderDbManager.get_download_links_for_email(order_id)
             return _links
+        except Exception as e:
+            print(e)
+            return
+
+    @staticmethod
+    async def cron_check_pay_state():
+        try:
+            _pay_list = await OrderDbManager.cron_check_pay_state()
+            return _pay_list
         except Exception as e:
             print(e)
             return

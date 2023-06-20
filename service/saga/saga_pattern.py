@@ -6,7 +6,7 @@ _SAGA_PATTERN = {
     'request_to_bank': OrderServiceManager.request_to_bank,
     'add_bank_order_to_temp': OrderServiceManager.add_bank_order_to_temp,
     'redirect_to_payment_url': 4,  # endpoint
-    'check_payment_state': OrderServiceManager.check_payment_state_and_verify
+    'check_payment_state': OrderServiceManager.check_payment_state_and_verify,
 }
 
 
