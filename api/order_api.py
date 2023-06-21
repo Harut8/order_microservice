@@ -2,11 +2,21 @@ import uuid
 from typing import Union
 
 from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import BackgroundTasks
 from starlette.responses import RedirectResponse
-
+from mailing.zayavka_mailing.send_zayavka_company import send_zayavka_company_email_
+from mailing.zayavka_mailing.send_zayavka_partner import send_zayavka_partner_email_
 from auth.auth import auth_required
-from models.order_model.order_model import BuyTariff
+from models.order_model.order_model import BuyTariff, PartnerZayavka, CompanyZayavka
 from service.order_service_manager.order_service_manager import OrderServiceManager
+
+
+def send_zayavka_company_email(receiver, message):
+    send_zayavka_company_email_(receiver, message)
+
+
+def send_zayavka_partner_email(message):
+    send_zayavka_partner_email_(message)
 
 
 order_router = APIRouter(tags=["ORDER API"], prefix="/order")
@@ -48,3 +58,14 @@ async def buy_by_card(tariff_body: BuyTariff, authorize=Header(None)):
         return _bank_order_state
     return HTTPException(400)
 
+
+@order_router.post('/order-email-company')
+async def order_email(order_model: CompanyZayavka, back_task: BackgroundTasks):
+    back_task.add_task(send_zayavka_company_email_, order_model.acc_email, order_model)
+    return {"status": "success"}
+
+
+@order_router.post("/order-email-partner")
+async def zayavka_company(partner_zayavka: PartnerZayavka, back_task: BackgroundTasks):
+    back_task.add_task(send_zayavka_partner_email, partner_zayavka)
+    return {"status": "ok"}

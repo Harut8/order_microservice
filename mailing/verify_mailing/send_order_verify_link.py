@@ -15,7 +15,7 @@ def send_order_verify_link_email(*, receiver_email: str, message: str):
         sender_email = ParseEnv.EMAIL_
         password = ParseEnv.EMAIL_PASS
         receiver_add = receiver_email
-        smtp_server = smtplib.SMTP("smtp.mail.ru", 587)
+        smtp_server = smtplib.SMTP("mail.pcassa.ru", 587)
         smtp_server.starttls() #setting up to TLS connection
         ##############
         msg = MIMEMultipart('alternative')
