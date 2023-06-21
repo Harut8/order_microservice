@@ -18,11 +18,11 @@ class BuyTariff(BaseModel):
 
 
 class CompanyZayavka(BaseModel):
-    acc_contact_name: str = Field(regex=r'^[A-Za-z0-9]+$')
-    acc_org_name: str = Field(regex=r'^[A-Za-z0-9]+$')
+    acc_contact_name: str = Field(regex=r'^[A-Za-z0-9\s]+$')
+    acc_org_name: str = Field(regex=r'^[A-Za-z0-9\s]+$')
     acc_email: str
     acc_phone: str
-    acc_address: str | None = Field(regex=r'^[A-Za-z0-9\/*.%$^#@]+$')
+    acc_address: str | None = Field(regex=r'^[A-Za-z0-9\/*.%$^#@\s]+$')
     acc_country: str
     acc_inn: str = Field(default=None, description="Идентификационный номер налогоплательщика", regex=r'^\d{1,15}$')
 
@@ -44,13 +44,13 @@ class CompanyZayavka(BaseModel):
 
 
 class PartnerZayavka(BaseModel):
-    fio: str | None = Field(regex=r'^[A-Za-z0-9]+$', default=None)
+    fio: str | None = Field(regex=r'^[A-Za-z0-9\s]+$', default=None)
     phone: str | None = None
     email: str | None = None
-    country: str | None = Field(regex=r'^[A-Za-z0-9]+$', default=None)
-    company_name: str | None = Field(regex=r'^[A-Za-z0-9]+$', default=None)
+    country: str | None = Field(regex=r'^[A-Za-z0-9\s]+$', default=None)
+    company_name: str | None = Field(regex=r'^[A-Za-z0-9\s]+$', default=None)
     costumer_count: str | None = Field(regex=r'^[A-Za-z0-9]+$', default=None)
-    comments: str | None = Field(regex=r'^[A-Za-z0-9]+$', default=None)
+    comments: str | None = Field(regex=r'^[A-Za-z0-9\s]+$', default=None)
 
     @validator('phone')
     def check_acc_phone(cls, acc_phone):
