@@ -66,7 +66,7 @@ class RabbitMQ:
                 message,
                 routing_key=routing_key,
             )
-            await self.close()
+            # await self.close()
         except Exception as e:
             print(e, 'RABBIT ERROR')
             return

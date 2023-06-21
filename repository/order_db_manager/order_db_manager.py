@@ -99,13 +99,21 @@ class OrderDbManager(TariffDbInterface):
         return _bank_order_id
 
     @staticmethod
-    async def get_payment_status_check_url(bank_order_id):
-        _check_status_url = await fetch_row_transaction(
-            """
-            SELECT check_status_url,bank_token from bank_info where country_code=(
-            SELECT mod((select c_unique_id from company where c_id = company_id),100) FROM saved_order_and_tarif_bank WHERE bank_order_id = $1)""",
-            bank_order_id
-        )
+    async def get_payment_status_check_url(bank_order_id, by_order=0):
+        if by_order == 0:
+            _check_status_url = await fetch_row_transaction(
+                """
+                SELECT check_status_url,bank_token from bank_info where country_code=(
+                SELECT mod((select c_unique_id from company where c_id = company_id),100) FROM saved_order_and_tarif_bank WHERE bank_order_id = $1)""",
+                bank_order_id
+            )
+        else:
+            _check_status_url = await fetch_row_transaction(
+                """
+                SELECT check_status_url,bank_token from bank_info where country_code=(
+                SELECT mod((select c_unique_id from company where c_id = company_id),100) FROM saved_order_and_tarif_bank WHERE order_id = $1)""",
+                bank_order_id
+            )
         return _check_status_url
 
     @staticmethod

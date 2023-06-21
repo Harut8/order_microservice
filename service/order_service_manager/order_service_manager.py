@@ -80,7 +80,16 @@ class OrderServiceManager(OrderServiceInterface):
         try:
             from service.saga.saga_pattern import _SAGA_RABBIT
             info = {'bank_order_id': bank_order_id, 'order_id': order_id}
-            await _SAGA_RABBIT["_CHECK_PAYMENT_STATE"].produce("redirect_payment", json.dumps(info))
+            bank_url = await OrderDbManager.get_payment_status_check_url(order_id, by_order=1)
+            async with httpx.AsyncClient() as client:
+                bank_url = bank_url['check_status_url']+bank_order_id+"&token="+bank_url["bank_token"]
+                _pay_state = await client.post(bank_url)
+                _pay_state = _pay_state.json()
+                print(_pay_state)
+                if _pay_state["errorCode"] == '0' and _pay_state['orderStatus'] == 2:
+                    await _SAGA_RABBIT["_CHECK_PAYMENT_STATE"].produce("redirect_payment", json.dumps(info))
+                    return True
+            return {"status": _pay_state['actionCodeDescription']}
         except Exception as e:
             print(e)
             return
@@ -98,7 +107,9 @@ class OrderServiceManager(OrderServiceInterface):
                 bank_url = bank_url['check_status_url']+bank_order_id+"&token="+bank_url["bank_token"]
                 _pay_state = await client.post(bank_url)
                 _pay_state = _pay_state.json()
+                print(_pay_state)
                 await OrderDbManager.check_pay_state(bank_order_id)
+                # actionCodeDescription mail
                 if _pay_state["errorCode"] == '0' and _pay_state['orderStatus'] == 2:
                     return await OrderDbManager.add_tariff_to_user_after_verify(bank_order_id)
         except Exception as e:

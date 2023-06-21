@@ -37,8 +37,10 @@ async def _verify_order(order_token: Union[str, uuid.UUID]):
 
 @order_router.get("/verify-payment")
 async def verify_payment(orderId: Union[str, uuid.UUID], lang: str, order_id):
-    await OrderServiceManager.check_payment_state(orderId, order_id)
-    return RedirectResponse("https://pcassa.ru")
+    _pay_state = await OrderServiceManager.check_payment_state(orderId, order_id)
+    if isinstance(_pay_state, bool):
+        return RedirectResponse('pcassa.ru')
+    return _pay_state
 
 
 @order_router.post("/buy-by-card")
