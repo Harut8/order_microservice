@@ -41,4 +41,4 @@ def ping():
 
 
 def run_server():
-    run(app, port=8002)
+    run(app, port=8000, host='192.168.0.121')
