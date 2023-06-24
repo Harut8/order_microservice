@@ -14,7 +14,7 @@ celery_decor: Celery = Celery(
     include=[
         'mailing.verify_mailing.send_order_verify_link',
         'mailing.download_mailing.send_download_links',
-         'repository.order_db_manager.order_db_manager'])
+        'repository.order_db_manager.order_db_manager'])
 
 
 celery_decor.conf.enable_utc = False
