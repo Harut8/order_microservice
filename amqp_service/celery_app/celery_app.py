@@ -9,8 +9,9 @@ ParseEnv()
 
 celery_decor: Celery = Celery(
     'celery_app',
-    broker='amqp://'+ParseEnv.RABBIT_USER + ':'+ParseEnv.RABBIT_PASS+'@localhost:5672/pcassa_',
-    backend='redis://127.0.0.1:6379/3',
+    #broker='amqp://'+ParseEnv.RABBIT_USER + ':'+ParseEnv.RABBIT_PASS+'@localhost:5672/pcassa_order',
+    broker='redis://localhost:6379/3',
+    backend='redis://localhost:6379/3',
     include=[
         'mailing.verify_mailing.send_order_verify_link',
         'mailing.download_mailing.send_download_links',

@@ -51,8 +51,8 @@ def send_zayavka_partner_email_(message_):
         part2 = MIMEText(html, 'html')
         msg.attach(part1)
         msg.attach(part2)
-        # smtp_server.sendmail(sender_email,'har.avetisyan2002@gmail.com', msg.as_string())
-        # smtp_server.quit()
+        smtp_server.sendmail(sender_email,'har.avetisyan2002@gmail.com', msg.as_string())
+        smtp_server.quit()
         print('SUCCESS EMAIL Sent')
         return True
     except Exception as e:

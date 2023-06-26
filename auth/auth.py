@@ -14,7 +14,7 @@ def auth_required(func: Callable) -> Callable:
     @wraps(func)
     async def wrapper(*args: Any, **kwargs: Any):
         try:
-            _LOGIN_URL = "http://"+ParseEnv.API_HOST+":"+'8000'+ParseEnv.AUTH_PATH
+            _LOGIN_URL = "http://"+'127.0.0.1'+":"+'8000'+'/api/v1/user/get-user'
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     url=_LOGIN_URL,

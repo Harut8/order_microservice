@@ -39,7 +39,7 @@ async def _verify_order(order_token: Union[str, uuid.UUID]):
 async def verify_payment(orderId: Union[str, uuid.UUID], lang: str, order_id: Union[str, uuid.UUID]):
     _pay_state = await OrderServiceManager.check_payment_state(orderId, order_id)
     if isinstance(_pay_state, bool):
-        return RedirectResponse('pcassa.ru')
+        return RedirectResponse('https://pcassa.ru')
     return _pay_state
 
 
@@ -54,7 +54,6 @@ async def buy_by_card(tariff_body: BuyTariff, authorize=Header(None)):
         return HTTPException(400, 'WRONG COUNTRY PAYMENT SYSTEM')
     if isinstance(_bank_order_state, dict):
         return HTTPException(400, _bank_order_state)
-    print(_bank_order_state)
     if _bank_order_state:
         #return RedirectResponse(_bank_order_state)
         return _bank_order_state

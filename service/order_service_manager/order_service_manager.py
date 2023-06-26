@@ -1,3 +1,4 @@
+import asyncio
 import json
 import uuid
 from typing import Union
@@ -21,6 +22,7 @@ class OrderServiceManager(OrderServiceInterface):
                 return -1
             _bank_url = _bank_url + "order_id="+str(_temp_order_id["order_id"])
             _form_url = await _SAGA_PATTERN["request_to_bank"](_bank_url)
+            print(_form_url)
             return _form_url
         except Exception as e:
             print(e)
@@ -79,7 +81,11 @@ class OrderServiceManager(OrderServiceInterface):
     async def check_payment_state(bank_order_id: Union[str, uuid.UUID], order_id):
         try:
             from service.saga.saga_pattern import _SAGA_RABBIT
+            from amqp_service.rabbit_app.pika_app import RabbitMQ
             info = {'bank_order_id': bank_order_id, 'order_id': order_id}
+            bank_and_order = info
+            message_id = str(uuid.uuid4())
+            await OrderServiceManager.add_task_for_track(message_id, info)
             bank_url = await OrderDbManager.get_payment_status_check_url(order_id, by_order=1)
             async with httpx.AsyncClient() as client:
                 bank_url = bank_url['check_status_url']+bank_order_id+"&token="+bank_url["bank_token"]
@@ -87,7 +93,9 @@ class OrderServiceManager(OrderServiceInterface):
                 _pay_state = _pay_state.json()
                 print(_pay_state)
                 if _pay_state["errorCode"] == '0' and _pay_state['orderStatus'] == 2:
-                    await _SAGA_RABBIT["_CHECK_PAYMENT_STATE"].produce("redirect_payment", json.dumps(info))
+                    task1 = asyncio.create_task(OrderServiceManager.add_task_for_track(message_id, info))
+                    task2 = asyncio.create_task(RabbitMQ.check_payment_state_callback(info, message_id))
+                    await asyncio.gather(task1, task2)
                     return True
             return {"status": _pay_state['actionCodeDescription']}
         except Exception as e:
@@ -128,8 +136,8 @@ class OrderServiceManager(OrderServiceInterface):
     @staticmethod
     async def add_task_for_track(task_id, bank_order_id):
         try:
-            _order_info = json.loads(bank_order_id.decode('utf-8'))
-            _bank_order_id = _order_info["bank_order_id"]
+            # _order_info = json.loads(bank_order_id.decode('utf-8'))
+            _bank_order_id = bank_order_id["bank_order_id"]
             _add_state = await OrderDbManager.add_task_for_track(task_id, _bank_order_id)
             return _add_state
         except Exception as e:

@@ -5,20 +5,32 @@ import aio_pika
 from service.parser import ParseEnv
 from fastapi.responses import RedirectResponse
 
+
 class RabbitMQ:
+
+    def __new__(cls, *args, **kwargs):
+        if not hasattr(cls, 'object'):
+            cls.object  = super().__new__(cls)
+        return cls.object
 
     def __init__(self, queue, exchange):
         self._exchange = exchange
         self._queue = queue
-        self.__connection_url = 'amqp://'+ParseEnv.RABBIT_USER + ':'+ParseEnv.RABBIT_PASS+'@localhost:5672/pcassa_'
+        #self.__connection_url = 'amqp://rabbit:5672/'
         #asyncio.run(self._connection_open())
 
-    async def _connection_open(self):
-        self._conn = await aio_pika.connect(self.__connection_url)
-        await self._open_channel()
-
+    @classmethod
+    async def connection_open(self):
+        try:
+            print('connect')
+            self.object._conn = await aio_pika.connect_robust(host='rabbit', login=ParseEnv.RABBIT_USER, password=ParseEnv.RABBIT_PASS, port=5672)
+            print('end connection')
+            self.object._channel = await self.object._conn.channel()
+        except Exception as e:
+            print(e)
+            return
     async def _open_channel(self):
-        self._channel = await self._conn.channel()
+        self._channel = await self.channel()
 
     @staticmethod
     async def send_mails_after_check(bank_order_id, email, message_id):
@@ -41,7 +53,7 @@ class RabbitMQ:
         _update_state = False
         _email = None
         from service.saga.saga_pattern import _SAGA_PATTERN
-        bank_and_order = json.loads(body.decode('utf-8'))
+        bank_and_order = body
         #  here need to create safe system for backup pay
         if step == 0:
             await _SAGA_PATTERN['add_bank_order_to_temp'](
@@ -52,6 +64,7 @@ class RabbitMQ:
             if not _email:
                 return
             _email = _email["c_email"]
+            print(_email)
             await RabbitMQ.send_mails_after_check(bank_and_order["bank_order_id"], _email, message_id)
         elif step == 1:
             _email = await _SAGA_PATTERN['check_payment_state'](bank_and_order["bank_order_id"], step=1)
@@ -76,8 +89,9 @@ class RabbitMQ:
     async def consume(self, callback):
         #  callback is check_payment_state
         try:
+            # await self._connection_open()
+            # await asyncio.sleep(1)
             from service.order_service_manager.order_service_manager import OrderServiceManager
-            await self._connection_open()
             queue = await self._channel.declare_queue(self._queue)
             print("CONSUME")
             async with queue.iterator() as iterator:
@@ -94,7 +108,7 @@ class RabbitMQ:
                         await callback(message.body, message.message_id, step=1)
 
         except Exception as e:
-            print(e, 'something went wrong')
+            print(e)
             return
 
     async def close(self):
